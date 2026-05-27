@@ -1,0 +1,33 @@
+@import url("https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;0,6..96,700;1,6..96,400;1,6..96,500;1,6..96,600&family=Inter:wght@300;400;500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-paper text-ink font-sans antialiased;
+    font-feature-settings: "ss01", "cv11";
+  }
+  ::selection { @apply bg-lavender-300 text-ink; }
+  h1, h2, h3 {
+    @apply font-display;
+    font-variation-settings: "opsz" 96;
+  }
+}
+
+@layer utilities {
+  .marquee {
+    mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  }
+  /* high-contrast display optical size (Bodoni Moda only exposes opsz) */
+  .condensed {
+    font-variation-settings: "opsz" 96;
+  }
+  .wide {
+    font-variation-settings: "opsz" 28;
+  }
+}
