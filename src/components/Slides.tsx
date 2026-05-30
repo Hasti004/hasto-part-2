@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import { Instagram, Youtube, Twitter, Facebook, Plus, Minus } from "lucide-react";
-import { formatINR, type Product } from "../data/products";
+import { formatINR } from "../lib/products";
 import { cn } from "../lib/cn";
 
 const ease = [0.22, 1, 0.36, 1] as const;
@@ -44,20 +45,31 @@ export function Intro() {
 
 /* -------------------------------------------------------------- feature --- */
 
+export type FeatureItem = {
+  image: string;
+  name: string;
+  slug: string;
+  price: number;
+  tagline?: string | null;
+  category: string;
+};
+
 export function Feature({
-  product,
+  item,
   align = "left",
   bg = "bg-paper",
+  indexLabel,
 }: {
-  product: Product;
+  item: FeatureItem;
   align?: "left" | "right";
   bg?: string;
+  indexLabel?: string;
 }) {
   return (
     <div className={`relative h-full w-full overflow-hidden ${bg}`}>
       <motion.img
-        src={product.image}
-        alt={product.name}
+        src={item.image}
+        alt={item.name}
         initial={{ scale: 1.2 }}
         whileInView={{ scale: 1 }}
         viewport={{ once: true, margin: "-8%" }}
@@ -68,8 +80,8 @@ export function Feature({
 
       <div className="absolute inset-0 flex flex-col justify-between px-6 pb-10 pt-24 md:px-10">
         <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.2em] text-paper/70">
-          <span>{product.category}</span>
-          <span>{product.id} / 06</span>
+          <span>{item.category}</span>
+          {indexLabel && <span>{indexLabel}</span>}
         </div>
 
         <motion.div
@@ -83,25 +95,27 @@ export function Feature({
             className="font-display font-medium uppercase leading-[0.9] tracking-[0.01em] text-paper"
             style={{ fontSize: "clamp(2.5rem, 8vw, 8rem)" }}
           >
-            {product.name}
+            {item.name}
           </h2>
           <div
             className={`mt-6 flex items-center gap-7 ${
               align === "right" ? "justify-end" : ""
             }`}
           >
-            <p className="max-w-xs font-serif text-sm italic text-paper/80">
-              {product.tagline}
-            </p>
+            {item.tagline && (
+              <p className="max-w-xs font-serif text-sm italic text-paper/80">
+                {item.tagline}
+              </p>
+            )}
             <span className="text-sm tracking-[0.1em] text-paper">
-              {formatINR(product.price)}
+              {formatINR(item.price)}
             </span>
-            <a
-              href={`#${product.slug}`}
+            <Link
+              to={`/product/${item.slug}`}
               className="border-b border-paper/60 pb-1 text-[12px] uppercase tracking-[0.2em] text-paper transition hover:border-paper"
             >
               discover
-            </a>
+            </Link>
           </div>
         </motion.div>
       </div>
@@ -187,34 +201,49 @@ function Stat({ k, l }: { k: string; l: string }) {
 
 /* -------------------------------------------------------------- closing --- */
 
+const SHOP_LINKS: FooterLink[] = [
+  { label: "rings", to: "/shop/rings" },
+  { label: "earrings", to: "/shop/earrings" },
+  { label: "necklaces", to: "/shop/necklaces" },
+  { label: "bracelets", to: "/shop/bracelets" },
+  { label: "gift cards", to: "#" },
+  { label: "new in", to: "#" },
+];
+const HOUSE_LINKS: FooterLink[] = [
+  { label: "our story", to: "/about" },
+  { label: "sustainability", to: "#" },
+  { label: "careers", to: "#" },
+  { label: "press", to: "#" },
+  { label: "stockists", to: "#" },
+];
+const HELP_LINKS: FooterLink[] = [
+  { label: "customer service", to: "#" },
+  { label: "shipping & delivery", to: "#" },
+  { label: "returns", to: "#" },
+  { label: "find a store", to: "#" },
+  { label: "contact", to: "#" },
+  { label: "cookie settings", to: "#" },
+];
+
 export function Closing() {
   return (
     <div className="relative min-h-[100svh] bg-paper px-6 pb-12 pt-28 text-ink md:px-10">
-      <div className="mx-auto w-full max-w-[1500px]">
+      <div className="w-full">
         {/* link columns — full 4-up on desktop, tap-to-expand accordions on mobile + tablet */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 lg:gap-8">
-          <FooterCol
-            title="Shop"
-            links={["rings", "earrings", "necklaces", "bracelets", "gift cards", "new in"]}
-          />
-          <FooterCol
-            title="The House"
-            links={["our story", "sustainability", "careers", "press", "stockists"]}
-          />
-          <FooterCol
-            title="Help"
-            links={["customer service", "shipping & delivery", "returns", "find a store", "contact", "cookie settings"]}
-          />
+        <div className="grid grid-cols-1 lg:grid-cols-4 lg:gap-16">
+          <FooterCol title="Shop" links={SHOP_LINKS} />
+          <FooterCol title="The House" links={HOUSE_LINKS} />
+          <FooterCol title="Help" links={HELP_LINKS} />
           <FooterCol title="Become a member">
             <p className="max-w-[15rem] text-[12px] leading-relaxed text-ink/80">
               Join now and get 10% off your first order.
             </p>
-            <a
-              href="#"
+            <Link
+              to="/account/login"
               className="mt-2.5 inline-block text-[11.5px] uppercase tracking-[0.03em] text-ink underline underline-offset-4 transition hover:text-lavender-700"
             >
               sign up now
-            </a>
+            </Link>
           </FooterCol>
         </div>
 
@@ -271,13 +300,15 @@ export function Closing() {
   );
 }
 
+type FooterLink = { label: string; to: string };
+
 function FooterCol({
   title,
   links,
   children,
 }: {
   title: string;
-  links?: string[];
+  links?: FooterLink[];
   children?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -306,13 +337,22 @@ function FooterCol({
         {links ? (
           <ul className="space-y-1">
             {links.map((l) => (
-              <li key={l}>
-                <a
-                  href="#"
-                  className="block text-[11.5px] uppercase leading-5 tracking-[0.03em] text-ink/70 transition hover:text-ink"
-                >
-                  {l}
-                </a>
+              <li key={l.label}>
+                {l.to.startsWith("/") ? (
+                  <Link
+                    to={l.to}
+                    className="block text-[11.5px] uppercase leading-5 tracking-[0.03em] text-ink/70 transition hover:text-ink"
+                  >
+                    {l.label}
+                  </Link>
+                ) : (
+                  <a
+                    href={l.to}
+                    className="block text-[11.5px] uppercase leading-5 tracking-[0.03em] text-ink/70 transition hover:text-ink"
+                  >
+                    {l.label}
+                  </a>
+                )}
               </li>
             ))}
           </ul>

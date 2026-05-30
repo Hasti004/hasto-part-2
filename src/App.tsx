@@ -4,6 +4,25 @@ import { Routes, Route, useLocation } from "react-router-dom";
 import { Navbar } from "./components/Navbar";
 import { Home } from "./pages/Home";
 import { About } from "./pages/About";
+import { Category } from "./pages/Category";
+import { AdminLogin } from "./admin/Login";
+import { AdminLayout } from "./admin/AdminLayout";
+import { RequireAdmin } from "./admin/RequireAdmin";
+import { Dashboard } from "./admin/Dashboard";
+import { Products } from "./admin/Products";
+import { ProductForm } from "./admin/ProductForm";
+import { CsvImport } from "./admin/CsvImport";
+import { Orders } from "./admin/Orders";
+import { Carts } from "./admin/Carts";
+import { Visitors } from "./admin/Visitors";
+import { RouteTracker } from "./components/RouteTracker";
+import { CartDrawer } from "./components/CartDrawer";
+import { Product } from "./pages/Product";
+import { Checkout } from "./pages/Checkout";
+import { OrderConfirmation } from "./pages/OrderConfirmation";
+import { Wishlist } from "./pages/Wishlist";
+import { CustomerAuth } from "./pages/account/CustomerAuth";
+import { Account } from "./pages/account/Account";
 
 function App() {
   const { pathname } = useLocation();
@@ -92,8 +111,33 @@ function App() {
       step(dir);
     };
 
-    const onWheel = (e: WheelEvent) =>
-      handle(Math.sign(e.deltaY), () => e.preventDefault());
+    // Wheel/trackpad: one step per gesture. A forceful flick fires many wheel
+    // events (plus inertia) — we step only on the first, then stay locked until
+    // the events actually stop for a beat, so you can never blow past one slide.
+    let wheelLocked = false;
+    let wheelRelease: number | undefined;
+    const wheelStep = (dir: number) => {
+      window.clearTimeout(wheelRelease);
+      wheelRelease = window.setTimeout(() => {
+        wheelLocked = false;
+      }, 160);
+      if (wheelLocked || animating) return;
+      wheelLocked = true;
+      step(dir);
+    };
+    const onWheel = (e: WheelEvent) => {
+      const dir = Math.sign(e.deltaY);
+      if (!dir) return;
+      if (inFooter()) {
+        if (dir < 0 && window.scrollY <= footerTop() + 4) {
+          e.preventDefault();
+          wheelStep(-1);
+        }
+        return; // native scroll within the footer
+      }
+      e.preventDefault();
+      wheelStep(dir);
+    };
 
     let startY = 0;
     const onTouchStart = (e: TouchEvent) => {
@@ -125,6 +169,7 @@ function App() {
     window.addEventListener("keydown", onKey);
     return () => {
       window.clearTimeout(timer);
+      window.clearTimeout(wheelRelease);
       window.removeEventListener("wheel", onWheel);
       window.removeEventListener("touchstart", onTouchStart);
       window.removeEventListener("touchmove", onTouchMove);
@@ -133,12 +178,43 @@ function App() {
     };
   }, [pathname]);
 
+  const isAdmin = pathname.startsWith("/admin");
+
   return (
     <div className="relative bg-paper text-ink">
-      <Navbar />
+      <RouteTracker />
+      {!isAdmin && <Navbar />}
+      {!isAdmin && <CartDrawer />}
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/about" element={<About />} />
+        <Route path="/shop/:category" element={<Category />} />
+        <Route path="/product/:slug" element={<Product />} />
+        <Route path="/checkout" element={<Checkout />} />
+        <Route path="/order-confirmed" element={<OrderConfirmation />} />
+        <Route path="/wishlist" element={<Wishlist />} />
+        <Route path="/account" element={<Account />} />
+        <Route path="/account/login" element={<CustomerAuth />} />
+
+        {/* admin */}
+        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route
+          path="/admin"
+          element={
+            <RequireAdmin>
+              <AdminLayout />
+            </RequireAdmin>
+          }
+        >
+          <Route index element={<Dashboard />} />
+          <Route path="orders" element={<Orders />} />
+          <Route path="products" element={<Products />} />
+          <Route path="products/new" element={<ProductForm />} />
+          <Route path="products/:id" element={<ProductForm />} />
+          <Route path="import" element={<CsvImport />} />
+          <Route path="carts" element={<Carts />} />
+          <Route path="visitors" element={<Visitors />} />
+        </Route>
       </Routes>
     </div>
   );

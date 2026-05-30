@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;0,6..96,700;1,6..96,400;1,6..96,500;1,6..96,600&family=Inter:wght@300;400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;0,6..96,700;1,6..96,400;1,6..96,500;1,6..96,600&family=Inter:wght@300;400;500;600&family=Big+Shoulders+Display:wght@400;500;600;700&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -29,5 +29,21 @@
   }
   .wide {
     font-variation-settings: "opsz" 28;
+  }
+  /* living film grain — small jittery shifts give that 90s shimmer */
+  @keyframes grain {
+    0%, 100% { transform: translate(0, 0); }
+    10% { transform: translate(-4%, -5%); }
+    20% { transform: translate(-9%, 4%); }
+    30% { transform: translate(5%, -8%); }
+    40% { transform: translate(-3%, 12%); }
+    50% { transform: translate(-9%, 6%); }
+    60% { transform: translate(12%, 0); }
+    70% { transform: translate(0, 9%); }
+    80% { transform: translate(-12%, 1%); }
+    90% { transform: translate(8%, 4%); }
+  }
+  .grain-anim {
+    animation: grain 0.6s steps(1) infinite;
   }
 }

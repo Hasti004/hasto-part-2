@@ -32,6 +32,7 @@ export default {
         display: ['"Bodoni Moda"', 'ui-serif', 'Georgia', 'serif'],
         serif: ['"Bodoni Moda"', 'ui-serif', 'Georgia', 'serif'],
         sans: ['"Inter"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        edit: ['"Big Shoulders Display"', '"Inter"', 'ui-sans-serif', 'sans-serif'],
         mono: ['ui-monospace', 'Consolas', 'monospace'],
       },
       letterSpacing: {

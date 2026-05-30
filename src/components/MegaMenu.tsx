@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { cn } from "../lib/cn";
 
 export type MenuColumn = {
@@ -5,6 +6,10 @@ export type MenuColumn = {
   seasons?: string[];
   links: string[];
 };
+
+/** Map a menu label to its real route. */
+const routeFor = (label: string) =>
+  label === "view all" ? "/" : `/shop/${label.replace(/\s+/g, "-")}`;
 
 export const menus: Record<string, MenuColumn[]> = {
   women: [
@@ -84,13 +89,13 @@ export function MegaMenu({
                 >
                   {col.links.map((l) => (
                     <li key={l}>
-                      <a
-                        href="#"
+                      <Link
+                        to={routeFor(l)}
                         onClick={onClose}
                         className="block text-[12px] uppercase leading-5 tracking-[0.04em] text-ink/65 transition hover:text-ink"
                       >
                         {l}
-                      </a>
+                      </Link>
                     </li>
                   ))}
                 </ul>
