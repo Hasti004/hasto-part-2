@@ -3,13 +3,14 @@ import { Link, Navigate } from "react-router-dom";
 import { X } from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { useWishlist } from "../lib/wishlist";
-import { fetchWishlistProducts, type ProductRow } from "../lib/commerce";
+import { fetchWishlistProducts } from "../lib/commerce";
 import { formatINR } from "../lib/products";
+import type { HastoProduct } from "../lib/mapShopifyProduct";
 
 export function Wishlist() {
   const { session, loading } = useAuth();
   const wishlist = useWishlist();
-  const [products, setProducts] = useState<ProductRow[] | null>(null);
+  const [products, setProducts] = useState<HastoProduct[] | null>(null);
 
   useEffect(() => {
     if (!session) return;
@@ -49,7 +50,7 @@ export function Wishlist() {
             {products.map((p) => (
               <div key={p.id} className="group relative block">
                 <button
-                  onClick={() => wishlist.toggle(p.id)}
+                  onClick={() => void wishlist.toggle(p.id)}
                   aria-label="Remove"
                   className="absolute right-2 top-2 z-10 rounded-full bg-paper/90 p-1.5 text-ink/60 transition hover:text-ink"
                 >

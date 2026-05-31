@@ -1,16 +1,26 @@
-import { useNavigate } from "react-router-dom";
 import { X, Minus, Plus, ShoppingBag } from "lucide-react";
 import { useCart } from "../lib/cart";
 import { formatINR } from "../lib/products";
 import { cn } from "../lib/cn";
 
 export function CartDrawer() {
-  const { items, open, setOpen, subtotal, count, setQty, remove } = useCart();
-  const navigate = useNavigate();
+  const {
+    items,
+    open,
+    setOpen,
+    subtotal,
+    count,
+    setQty,
+    remove,
+    goToCheckout,
+    loading,
+    checkoutUrl,
+  } = useCart();
 
-  const goCheckout = () => {
+  const handleCheckout = () => {
+    if (!checkoutUrl || items.length === 0) return;
     setOpen(false);
-    navigate("/checkout");
+    goToCheckout();
   };
 
   return (
@@ -39,7 +49,11 @@ export function CartDrawer() {
           </button>
         </div>
 
-        {items.length === 0 ? (
+        {loading && items.length === 0 ? (
+          <div className="flex flex-1 items-center justify-center px-6">
+            <p className="text-[12px] uppercase tracking-[0.2em] text-ink/40">loading…</p>
+          </div>
+        ) : items.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
             <ShoppingBag size={30} strokeWidth={1.2} className="text-ink/25" />
             <p className="text-sm lowercase tracking-[0.1em] text-ink/45">
@@ -57,7 +71,7 @@ export function CartDrawer() {
             <div className="flex-1 overflow-y-auto px-6 py-4">
               <ul className="divide-y divide-ink/8">
                 {items.map((i) => (
-                  <li key={i.product_id} className="flex gap-4 py-5">
+                  <li key={i.lineId} className="flex gap-4 py-5">
                     <div className="h-24 w-20 shrink-0 overflow-hidden rounded-[3px] bg-[#f1eee9]">
                       {i.image && (
                         <img src={i.image} alt={i.name} className="h-full w-full object-cover" />
@@ -69,8 +83,9 @@ export function CartDrawer() {
                           {i.name}
                         </h3>
                         <button
-                          onClick={() => remove(i.product_id)}
-                          className="text-ink/35 hover:text-ink"
+                          onClick={() => void remove(i.lineId)}
+                          disabled={loading}
+                          className="text-ink/35 hover:text-ink disabled:opacity-40"
                           aria-label="Remove"
                         >
                           <X size={15} />
@@ -82,8 +97,9 @@ export function CartDrawer() {
                       <div className="mt-auto flex items-center gap-3">
                         <div className="flex items-center rounded-full border border-ink/15">
                           <button
-                            onClick={() => setQty(i.product_id, i.quantity - 1)}
-                            className="px-2.5 py-1.5 text-ink/60 hover:text-ink"
+                            onClick={() => void setQty(i.lineId, i.quantity - 1)}
+                            disabled={loading}
+                            className="px-2.5 py-1.5 text-ink/60 hover:text-ink disabled:opacity-30"
                             aria-label="Decrease"
                           >
                             <Minus size={13} />
@@ -92,8 +108,8 @@ export function CartDrawer() {
                             {i.quantity}
                           </span>
                           <button
-                            onClick={() => setQty(i.product_id, i.quantity + 1)}
-                            disabled={i.quantity >= i.stock}
+                            onClick={() => void setQty(i.lineId, i.quantity + 1)}
+                            disabled={loading || i.quantity >= i.stock}
                             className="px-2.5 py-1.5 text-ink/60 hover:text-ink disabled:opacity-30"
                             aria-label="Increase"
                           >
@@ -123,8 +139,9 @@ export function CartDrawer() {
                 shipping calculated at checkout
               </p>
               <button
-                onClick={goCheckout}
-                className="mt-4 w-full rounded-full bg-ink py-3.5 text-[12px] uppercase tracking-[0.16em] text-paper transition hover:bg-ink/90"
+                onClick={handleCheckout}
+                disabled={loading || !checkoutUrl}
+                className="mt-4 w-full rounded-full bg-ink py-3.5 text-[12px] uppercase tracking-[0.16em] text-paper transition hover:bg-ink/90 disabled:opacity-50"
               >
                 checkout
               </button>

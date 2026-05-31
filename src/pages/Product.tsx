@@ -1,45 +1,78 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Heart, Minus, Plus, ChevronLeft } from "lucide-react";
-import {
-  fetchProductBySlug,
-  fetchRecommendations,
-  trackEvent,
-  type ProductRow,
-} from "../lib/commerce";
+import { trackEvent } from "../lib/commerce";
 import { formatINR } from "../lib/products";
 import { useCart } from "../lib/cart";
 import { useWishlist } from "../lib/wishlist";
 import { useAuth } from "../lib/auth";
+import { useShopifyProduct } from "../hooks/useShopifyProduct";
+import { useShopifyCollections } from "../hooks/useShopifyCollections";
+import {
+  getShopifyRecommendations,
+} from "../lib/shopifyProducts";
+import { resolveCollectionHandle } from "../lib/collectionAliases";
+import {
+  hastoProductForVariant,
+  mapShopifyProduct,
+  type HastoProduct,
+} from "../lib/mapShopifyProduct";
 import { cn } from "../lib/cn";
 
 export function Product() {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const { add } = useCart();
+  const { add, adding } = useCart();
   const { session } = useAuth();
   const wishlist = useWishlist();
 
-  const [product, setProduct] = useState<ProductRow | null | undefined>(undefined);
-  const [recs, setRecs] = useState<ProductRow[]>([]);
+  const { product: baseProduct, loading } = useShopifyProduct(slug);
+  const { collections } = useShopifyCollections();
+  const [selectedVariantId, setSelectedVariantId] = useState<string>("");
+  const [recs, setRecs] = useState<HastoProduct[]>([]);
   const [qty, setQty] = useState(1);
 
   useEffect(() => {
-    if (!slug) return;
-    setProduct(undefined);
+    if (!baseProduct) return;
+    setSelectedVariantId(baseProduct.variantId);
     setQty(1);
-    fetchProductBySlug(slug)
-      .then((p) => {
-        setProduct(p);
-        if (p) {
-          void trackEvent("product_view", `/product/${slug}`, p.id);
-          fetchRecommendations(p.category, p.id).then(setRecs).catch(() => {});
-        }
-      })
-      .catch(() => setProduct(null));
-  }, [slug]);
+    void trackEvent("product_view", `/product/${slug}`, baseProduct.id);
+    const collectionHandle =
+      baseProduct.collections[0]?.handle || baseProduct.category;
+    const resolvedHandle = resolveCollectionHandle(collectionHandle, collections);
+    if (resolvedHandle || collectionHandle) {
+      getShopifyRecommendations(
+        collectionHandle,
+        baseProduct.id,
+        collections
+      )
+        .then((rows) => setRecs(rows.map(mapShopifyProduct)))
+        .catch(() => setRecs([]));
+    }
+  }, [baseProduct, slug, collections]);
 
-  if (product === undefined) {
+  const product = useMemo(() => {
+    if (!baseProduct) return null;
+    if (!selectedVariantId) return baseProduct;
+    return hastoProductForVariant(baseProduct, selectedVariantId);
+  }, [baseProduct, selectedVariantId]);
+
+  const optionGroups = useMemo(() => {
+    if (!product || product.variants.length <= 1) return [];
+    const groups = new Map<string, Set<string>>();
+    for (const v of product.variants) {
+      for (const opt of v.selectedOptions) {
+        if (!groups.has(opt.name)) groups.set(opt.name, new Set());
+        groups.get(opt.name)!.add(opt.value);
+      }
+    }
+    return Array.from(groups.entries()).map(([name, values]) => ({
+      name,
+      values: Array.from(values),
+    }));
+  }, [product]);
+
+  if (loading || baseProduct === undefined) {
     return (
       <main className="min-h-[100svh] bg-paper pt-28">
         <div className="mx-auto max-w-6xl animate-pulse px-6 md:px-10">
@@ -55,7 +88,7 @@ export function Product() {
     );
   }
 
-  if (product === null) {
+  if (!product) {
     return (
       <main className="flex min-h-[100svh] flex-col items-center justify-center gap-4 bg-paper text-center">
         <h1 className="font-display text-3xl text-ink">Piece not found</h1>
@@ -69,10 +102,38 @@ export function Product() {
   const soldOut = product.status === "out_of_stock" || product.stock_quantity <= 0;
   const gallery = [product.image, ...(product.images || [])].filter(Boolean) as string[];
   const inWishlist = wishlist.has(product.id);
+  const hasVariants = product.variants.length > 1;
 
   const onWishlist = async () => {
     const ok = await wishlist.toggle(product.id);
     if (!ok) navigate("/account/login", { state: { from: `/product/${slug}` } });
+  };
+
+  const selectOption = (optionName: string, value: string) => {
+    const current = product.variants.find((v) => v.id === selectedVariantId);
+    const nextOptions = new Map(
+      (current?.selectedOptions ?? []).map((o) => [o.name, o.value])
+    );
+    nextOptions.set(optionName, value);
+    const match = product.variants.find((v) =>
+      v.selectedOptions.every((o) => nextOptions.get(o.name) === o.value)
+    );
+    if (match) setSelectedVariantId(match.id);
+  };
+
+  const onAdd = () => {
+    void add(
+      {
+        id: product.id,
+        slug: product.slug,
+        name: product.name,
+        price: product.price,
+        image: product.image,
+        stock_quantity: product.stock_quantity,
+        variantId: product.variantId,
+      },
+      qty
+    );
   };
 
   return (
@@ -136,14 +197,49 @@ export function Product() {
             </p>
 
             {product.description && (
-              <p className="mt-6 max-w-md text-sm leading-relaxed text-ink/70">
-                {product.description}
-              </p>
+              <div
+                className="prose prose-sm mt-6 max-w-md text-ink/70 prose-p:leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: product.descriptionHtml || product.description }}
+              />
             )}
             {product.material && (
               <p className="mt-4 text-[12px] uppercase tracking-[0.1em] text-ink/45">
                 {product.material}
               </p>
+            )}
+
+            {hasVariants && (
+              <div className="mt-6 space-y-4">
+                {optionGroups.map((group) => {
+                  const selected = product.variants
+                    .find((v) => v.id === selectedVariantId)
+                    ?.selectedOptions.find((o) => o.name === group.name)?.value;
+                  return (
+                    <div key={group.name}>
+                      <p className="mb-2 text-[11px] uppercase tracking-[0.14em] text-ink/55">
+                        {group.name}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {group.values.map((value) => (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => selectOption(group.name, value)}
+                            className={cn(
+                              "rounded-full border px-4 py-2 text-[11px] uppercase tracking-[0.1em] transition",
+                              selected === value
+                                ? "border-ink bg-ink text-paper"
+                                : "border-ink/15 text-ink/70 hover:border-ink/40"
+                            )}
+                          >
+                            {value}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
 
             {/* qty + add */}
@@ -170,16 +266,16 @@ export function Product() {
               )}
 
               <button
-                disabled={soldOut}
-                onClick={() => add(product, qty)}
+                disabled={soldOut || adding}
+                onClick={onAdd}
                 className={cn(
                   "flex-1 rounded-full px-8 py-3.5 text-[12px] uppercase tracking-[0.16em] transition",
-                  soldOut
+                  soldOut || adding
                     ? "cursor-not-allowed bg-ink/10 text-ink/40"
                     : "bg-ink text-paper hover:bg-ink/90"
                 )}
               >
-                {soldOut ? "out of stock · coming soon" : "add to bag"}
+                {soldOut ? "out of stock · coming soon" : adding ? "adding…" : "add to bag"}
               </button>
 
               <button

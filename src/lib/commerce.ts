@@ -1,5 +1,8 @@
 import { supabase } from "./supabase";
 import type { Database } from "./database.types";
+import type { HastoProduct } from "./mapShopifyProduct";
+import { mapShopifyProduct } from "./mapShopifyProduct";
+import { getShopifyProductsByIds } from "./shopifyProducts";
 
 export type ProductRow = Database["public"]["Tables"]["products"]["Row"];
 export type OrderRow = Database["public"]["Tables"]["orders"]["Row"];
@@ -157,36 +160,37 @@ export async function fetchMyOrders() {
   return data ?? [];
 }
 
-// ---------------------------------------------------------------- wishlist
+// ---------------------------------------------------------------- wishlist (Shopify product GIDs)
 export async function fetchWishlistProductIds(): Promise<string[]> {
-  const { data, error } = await supabase.from("wishlists").select("product_id");
-  if (error) throw error;
-  return (data ?? []).map((r) => r.product_id);
-}
-
-export async function fetchWishlistProducts() {
   const { data, error } = await supabase
     .from("wishlists")
-    .select("product:products(*)")
-    .order("created_at", { ascending: false });
+    .select("shopify_product_id");
   if (error) throw error;
-  return (data ?? [])
-    .map((r) => r.product as unknown as ProductRow)
-    .filter(Boolean);
+  return (data ?? []).map((r) => r.shopify_product_id);
 }
 
-export async function addToWishlist(userId: string, productId: string) {
+export async function fetchWishlistProducts(): Promise<HastoProduct[]> {
+  const ids = await fetchWishlistProductIds();
+  if (!ids.length) return [];
+  const rows = await getShopifyProductsByIds(ids);
+  const byId = new Map(rows.map((r) => [r.id, mapShopifyProduct(r)]));
+  return ids
+    .map((id) => byId.get(id))
+    .filter((p): p is HastoProduct => Boolean(p));
+}
+
+export async function addToWishlist(userId: string, shopifyProductId: string) {
   const { error } = await supabase
     .from("wishlists")
-    .insert({ user_id: userId, product_id: productId });
+    .insert({ user_id: userId, shopify_product_id: shopifyProductId });
   if (error && !error.message.includes("duplicate")) throw error;
 }
 
-export async function removeFromWishlist(userId: string, productId: string) {
+export async function removeFromWishlist(userId: string, shopifyProductId: string) {
   const { error } = await supabase
     .from("wishlists")
     .delete()
     .eq("user_id", userId)
-    .eq("product_id", productId);
+    .eq("shopify_product_id", shopifyProductId);
   if (error) throw error;
 }

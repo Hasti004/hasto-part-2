@@ -22,12 +22,9 @@ export const slugify = (s: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
 
-export const formatINR = (n: number) =>
-  new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(n);
+import { formatMoney } from "../utils/formatMoney";
+
+export const formatINR = (n: number) => formatMoney(n, "INR");
 
 // ---------------------------------------------------------------- public reads
 /** Visible, non-discontinued products — what end users see. */

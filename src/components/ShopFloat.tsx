@@ -2,7 +2,9 @@ import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 
 import { useNavigate } from "react-router-dom";
 import { Eye, Heart, ShoppingBag } from "lucide-react";
 import { formatINR, slugify } from "../lib/products";
-import { fetchProductsBySlugs, type ProductRow } from "../lib/commerce";
+import { getShopifyProducts } from "../lib/shopifyProducts";
+import { findShopifyProductForPiece } from "../lib/collectionAliases";
+import { mapShopifyProduct, type HastoProduct } from "../lib/mapShopifyProduct";
 import { useCart } from "../lib/cart";
 import { useWishlist } from "../lib/wishlist";
 import { useAuth } from "../lib/auth";
@@ -27,6 +29,7 @@ type Piece = {
   name: string;
   price: number;
   image: string;
+  handle?: string;
   cx: number; // centre X (% of slide) — taken from the composite layout
   cy: number; // centre Y (%)
   w: number; // display width in px (proportional to the composite)
@@ -67,17 +70,32 @@ export function ShopFloat() {
   const wishlist = useWishlist();
   const { session } = useAuth();
 
-  // Live DB products keyed by slug — clicking a piece adds the real one to cart.
-  const [bySlug, setBySlug] = useState<Map<string, ProductRow>>(new Map());
+  // Live Shopify products keyed by piece handle — clicking a piece adds the real one to cart.
+  const [byPieceHandle, setByPieceHandle] = useState<Map<string, HastoProduct>>(new Map());
   useEffect(() => {
-    const slugs = pieces.map((p) => slugify(p.name));
-    fetchProductsBySlugs(slugs)
-      .then((rows) => setBySlug(new Map(rows.map((r) => [r.slug, r]))))
-      .catch(() => setBySlug(new Map()));
+    getShopifyProducts()
+      .then((rows) => {
+        const map = new Map<string, HastoProduct>();
+        for (const piece of pieces) {
+          const pieceHandle = piece.handle ?? slugify(piece.name);
+          const match = findShopifyProductForPiece(rows, piece, slugify);
+          if (match) {
+            map.set(pieceHandle, mapShopifyProduct(match));
+          } else if (import.meta.env.DEV) {
+            console.warn("[ShopFloat] No Shopify product matched piece:", {
+              name: piece.name,
+              handle: pieceHandle,
+              attempted: [piece.handle, slugify(piece.name)].filter(Boolean),
+            });
+          }
+        }
+        setByPieceHandle(map);
+      })
+      .catch(() => setByPieceHandle(new Map()));
   }, []);
 
-  const doAction = (kind: ActionKind, slug: string) => {
-    const prod = bySlug.get(slug);
+  const doAction = (kind: ActionKind, pieceHandle: string) => {
+    const prod = byPieceHandle.get(pieceHandle);
     if (!prod) return;
     if (kind === "view") {
       setActive(null);
@@ -87,7 +105,18 @@ export function ShopFloat() {
         if (!ok) navigate("/account/login", { state: { from: "/" } });
       });
     } else {
-      cart.add(prod, 1);
+      void cart.add(
+        {
+          id: prod.id,
+          slug: prod.slug,
+          name: prod.name,
+          price: prod.price,
+          image: prod.image,
+          stock_quantity: prod.stock_quantity,
+          variantId: prod.variantId,
+        },
+        1
+      );
     }
   };
 
@@ -203,6 +232,11 @@ export function ShopFloat() {
 
       {pieces.map((p, i) => {
         const open = active === i;
+        const handle = p.handle ?? slugify(p.name);
+        const live = byPieceHandle.get(handle);
+        const displayName = live?.name ?? p.name;
+        const displayPrice = live?.price ?? p.price;
+        const displayImage = live?.image ?? `${p.image}${V}`;
         const isRing = p.name.includes("ring");
         // radius based on the actual rendered size, so buttons hug the piece on
         // every screen; rings get +2mm clearance and an upward-biased arc.
@@ -266,8 +300,8 @@ export function ShopFloat() {
                   )}
                 />
                 <img
-                  src={`${p.image}${V}`}
-                  alt={p.name}
+                  src={displayImage}
+                  alt={displayName}
                   draggable={false}
                   className={cn(
                     "relative z-[1] h-auto w-full select-none object-contain transition-[filter] duration-300",
@@ -291,8 +325,8 @@ export function ShopFloat() {
                 const a = (angles[ai] * Math.PI) / 180;
                 const dx = Math.cos(a) * R;
                 const dy = Math.sin(a) * R;
-                const slug = slugify(p.name);
-                const prod = bySlug.get(slug);
+                const pieceHandle = handle;
+                const prod = byPieceHandle.get(pieceHandle);
                 const filled =
                   kind === "wishlist" && prod && session
                     ? wishlist.has(prod.id)
@@ -300,11 +334,11 @@ export function ShopFloat() {
                 return (
                   <button
                     key={label}
-                    aria-label={`${label} — ${p.name}`}
+                    aria-label={`${label} — ${displayName}`}
                     disabled={!prod}
                     onClick={(e) => {
                       e.stopPropagation();
-                      doAction(kind, slug);
+                      doAction(kind, pieceHandle);
                     }}
                     style={{
                       left: `calc(50% + ${dx.toFixed(1)}px)`,
@@ -332,7 +366,7 @@ export function ShopFloat() {
             <p
               className="mt-3 text-center font-display text-[12px] tracking-[0.06em] text-ink"
             >
-              {formatINR(p.price)}
+              {formatINR(displayPrice)}
             </p>
           </div>
         );

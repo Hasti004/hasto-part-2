@@ -1,119 +1,176 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
-import { syncCart, type ProductRow } from "./commerce";
+import type { HastoCartLine, HastoProduct } from "./mapShopifyProduct";
+import {
+  addToCart as shopifyAddToCart,
+  createCart,
+  getCart,
+  getStoredCartId,
+  getStoredCheckoutUrl,
+  removeCartLine,
+  updateCartLine,
+  clearBrokenCart,
+  type ShopifyCart,
+} from "./shopifyCart";
 
-export type CartItem = {
-  product_id: string;
-  slug: string;
-  name: string;
-  price: number;
-  image: string | null;
-  quantity: number;
-  stock: number;
-};
+export type CartItem = HastoCartLine;
 
 type CartProductInput = Pick<
-  ProductRow,
-  "id" | "slug" | "name" | "price" | "image" | "stock_quantity"
->;
+  HastoProduct,
+  "id" | "slug" | "name" | "price" | "image" | "stock_quantity" | "variantId"
+> & { variantId: string };
 
 type CartState = {
   items: CartItem[];
   count: number;
   subtotal: number;
+  checkoutUrl: string | null;
+  loading: boolean;
+  adding: boolean;
   open: boolean;
   setOpen: (v: boolean) => void;
-  add: (p: CartProductInput, qty?: number) => void;
-  remove: (productId: string) => void;
-  setQty: (productId: string, qty: number) => void;
+  add: (p: CartProductInput, qty?: number) => Promise<void>;
+  remove: (lineId: string) => Promise<void>;
+  setQty: (lineId: string, qty: number) => Promise<void>;
   clear: () => void;
+  goToCheckout: () => void;
+  refreshCart: () => Promise<void>;
 };
 
 const CartContext = createContext<CartState | null>(null);
-const STORAGE_KEY = "hasto_cart";
 
-function load(): CartItem[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as CartItem[]) : [];
-  } catch {
-    return [];
+function applyCart(setters: {
+  setItems: (items: CartItem[]) => void;
+  setCheckoutUrl: (url: string | null) => void;
+  setSubtotal: (n: number) => void;
+  setCount: (n: number) => void;
+}, cart: ShopifyCart | null) {
+  if (!cart) {
+    setters.setItems([]);
+    setters.setCheckoutUrl(null);
+    setters.setSubtotal(0);
+    setters.setCount(0);
+    return;
   }
+  setters.setItems(cart.lines);
+  setters.setCheckoutUrl(cart.checkoutUrl);
+  setters.setSubtotal(cart.subtotal);
+  setters.setCount(cart.totalQuantity);
 }
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>(load);
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(
+    () => getStoredCheckoutUrl()
+  );
+  const [subtotal, setSubtotal] = useState(0);
+  const [count, setCount] = useState(0);
   const [open, setOpen] = useState(false);
-  const syncTimer = useRef<number | undefined>(undefined);
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
 
-  // Persist locally + mirror to DB (debounced) on every change.
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-    window.clearTimeout(syncTimer.current);
-    syncTimer.current = window.setTimeout(() => {
-      void syncCart(
-        items.map((i) => ({ product_id: i.product_id, quantity: i.quantity }))
-      );
-    }, 600);
-    return () => window.clearTimeout(syncTimer.current);
-  }, [items]);
+  const setters = { setItems, setCheckoutUrl, setSubtotal, setCount };
 
-  const add: CartState["add"] = (p, qty = 1) => {
-    setItems((cur) => {
-      const existing = cur.find((i) => i.product_id === p.id);
-      const cap = Math.max(1, p.stock_quantity || 99);
-      if (existing) {
-        return cur.map((i) =>
-          i.product_id === p.id
-            ? { ...i, quantity: Math.min(cap, i.quantity + qty) }
-            : i
-        );
+  const refreshCart = useCallback(async () => {
+    setLoading(true);
+    try {
+      const cartId = getStoredCartId();
+      if (!cartId) {
+        applyCart(setters, null);
+        return;
       }
-      return [
-        ...cur,
-        {
-          product_id: p.id,
-          slug: p.slug,
-          name: p.name,
-          price: Number(p.price),
-          image: p.image,
-          quantity: Math.min(cap, qty),
-          stock: p.stock_quantity,
-        },
-      ];
-    });
-    setOpen(true);
+      const cart = await getCart(cartId);
+      applyCart(setters, cart);
+    } catch {
+      clearBrokenCart();
+      applyCart(setters, null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshCart();
+  }, [refreshCart]);
+
+  const add: CartState["add"] = async (p, qty = 1) => {
+    if (!p.variantId) return;
+    setAdding(true);
+    try {
+      const cartId = getStoredCartId();
+      const cart = cartId
+        ? await shopifyAddToCart(cartId, p.variantId, qty)
+        : await createCart(p.variantId, qty);
+      applyCart(setters, cart);
+      setOpen(true);
+    } finally {
+      setAdding(false);
+    }
   };
 
-  const remove: CartState["remove"] = (productId) =>
-    setItems((cur) => cur.filter((i) => i.product_id !== productId));
+  const remove: CartState["remove"] = async (lineId) => {
+    const cartId = getStoredCartId();
+    if (!cartId) return;
+    setLoading(true);
+    try {
+      const cart = await removeCartLine(cartId, lineId);
+      applyCart(setters, cart);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const setQty: CartState["setQty"] = (productId, qty) =>
-    setItems((cur) =>
-      cur
-        .map((i) =>
-          i.product_id === productId
-            ? { ...i, quantity: Math.max(0, Math.min(i.stock || 99, qty)) }
-            : i
-        )
-        .filter((i) => i.quantity > 0)
-    );
+  const setQty: CartState["setQty"] = async (lineId, qty) => {
+    const cartId = getStoredCartId();
+    if (!cartId) return;
+    if (qty <= 0) {
+      await remove(lineId);
+      return;
+    }
+    setLoading(true);
+    try {
+      const cart = await updateCartLine(cartId, lineId, qty);
+      applyCart(setters, cart);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const clear = () => setItems([]);
+  const clear = () => {
+    clearBrokenCart();
+    applyCart(setters, null);
+  };
 
-  const count = items.reduce((n, i) => n + i.quantity, 0);
-  const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
+  const goToCheckout = () => {
+    const url = checkoutUrl || getStoredCheckoutUrl();
+    if (!url) return;
+    window.location.href = url;
+  };
 
   return (
     <CartContext.Provider
-      value={{ items, count, subtotal, open, setOpen, add, remove, setQty, clear }}
+      value={{
+        items,
+        count,
+        subtotal,
+        checkoutUrl,
+        loading,
+        adding,
+        open,
+        setOpen,
+        add,
+        remove,
+        setQty,
+        clear,
+        goToCheckout,
+        refreshCart,
+      }}
     >
       {children}
     </CartContext.Provider>

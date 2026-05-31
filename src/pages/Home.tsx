@@ -2,16 +2,17 @@ import { useEffect, useState } from "react";
 import { Slide } from "../components/Slide";
 import { Intro, Feature, Closing, type FeatureItem } from "../components/Slides";
 import { ShopFloat } from "../components/ShopFloat";
-import { fetchFeaturedProducts } from "../lib/commerce";
+import { getShopifyHomeProducts } from "../lib/shopifyProducts";
+import { mapShopifyProduct } from "../lib/mapShopifyProduct";
 
 export function Home() {
   const [featured, setFeatured] = useState<FeatureItem[]>([]);
 
-  // Two live products for the editorial feature slides (newest, active only).
   useEffect(() => {
-    fetchFeaturedProducts(4)
-      .then((rows) => {
+    getShopifyHomeProducts(4)
+      .then(({ products: rows }) => {
         const items: FeatureItem[] = rows
+          .map(mapShopifyProduct)
           .filter((r) => r.image)
           .slice(0, 2)
           .map((r) => ({
@@ -19,7 +20,7 @@ export function Home() {
             name: r.name,
             slug: r.slug,
             price: Number(r.price),
-            tagline: r.tagline,
+            tagline: r.tagline ?? "",
             category: r.category,
           }));
         setFeatured(items);

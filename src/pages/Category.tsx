@@ -1,15 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { SlidersHorizontal, ChevronDown, Heart } from "lucide-react";
-import {
-  fetchPublicProducts,
-  fetchCategories,
-  formatINR,
-  type ProductRow,
-  type CategoryRow,
-} from "../lib/products";
+import { formatINR } from "../lib/products";
 import { useWishlist } from "../lib/wishlist";
+import { useShopifyCollections } from "../hooks/useShopifyCollections";
+import { useShopifyCollectionProducts } from "../hooks/useShopifyCollectionProducts";
+import { resolveCollectionHandle } from "../lib/collectionAliases";
 import { cn } from "../lib/cn";
+
+const SITE_TABS = ["earrings", "rings", "bracelets", "necklaces"] as const;
 
 export function Category() {
   const { category } = useParams();
@@ -18,32 +17,22 @@ export function Category() {
   const active = (category || "earrings").replace(/-/g, " ");
   const activeSlug = (category || "earrings").toLowerCase();
 
-  const [cats, setCats] = useState<CategoryRow[]>([]);
-  const [products, setProducts] = useState<ProductRow[] | null>(null);
+  const { collections, loading: collectionsLoading } = useShopifyCollections();
+  const { products, loading } = useShopifyCollectionProducts(
+    activeSlug,
+    collections,
+    collectionsLoading
+  );
 
-  useEffect(() => {
-    fetchCategories(true)
-      .then(setCats)
-      .catch(() => setCats([]));
-  }, []);
+  const resolvedHandle = useMemo(
+    () => resolveCollectionHandle(activeSlug, collections),
+    [activeSlug, collections]
+  );
 
-  useEffect(() => {
-    setProducts(null);
-    fetchPublicProducts(activeSlug)
-      .then(setProducts)
-      .catch(() => setProducts([]));
-  }, [activeSlug]);
-
-  // Tabs: women categories first, fall back to a sensible default set.
-  const tabs = useMemo(() => {
-    const list = cats.length
-      ? cats.map((c) => c.slug)
-      : ["earrings", "rings", "bracelets", "necklaces"];
-    return list;
-  }, [cats]);
-
-  const heading =
-    cats.find((c) => c.slug === activeSlug)?.name || active;
+  const heading = useMemo(() => {
+    const match = collections.find((c) => c.handle === resolvedHandle);
+    return match?.title || active;
+  }, [collections, resolvedHandle, active]);
 
   return (
     <main className="relative min-h-[100svh] bg-paper pt-24 text-ink">
@@ -63,7 +52,7 @@ export function Category() {
               filter
             </button>
             <nav className="flex items-center gap-5 overflow-x-auto">
-              {tabs.map((c) => {
+              {SITE_TABS.map((c) => {
                 const isActive = c === activeSlug;
                 return (
                   <Link
@@ -95,7 +84,7 @@ export function Category() {
       </div>
 
       {/* products grid */}
-      {products === null ? (
+      {loading || collectionsLoading || products === null ? (
         <div className="grid grid-cols-2 gap-x-5 gap-y-10 px-6 py-10 md:grid-cols-3 md:px-10 lg:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="animate-pulse">
@@ -115,6 +104,7 @@ export function Category() {
         <div className="grid grid-cols-2 gap-x-2 gap-y-16 px-2 py-10 md:grid-cols-3 md:gap-x-3 md:px-4 lg:grid-cols-4">
           {products.map((p) => {
             const soldOut = p.status === "out_of_stock";
+            const onSale = Boolean(p.compare_at_price && p.compare_at_price > p.price);
             const saved = wishlist.has(p.id);
             const onHeart = async (e: React.MouseEvent) => {
               e.preventDefault();
@@ -152,7 +142,12 @@ export function Category() {
                       out of stock · coming soon
                     </span>
                   )}
-                  {p.badge && !soldOut && (
+                  {onSale && !soldOut && (
+                    <span className="absolute left-3 top-3 text-[10px] lowercase tracking-[0.14em] text-ink/55">
+                      sale
+                    </span>
+                  )}
+                  {p.badge && !soldOut && !onSale && (
                     <span className="absolute left-3 top-3 text-[10px] lowercase tracking-[0.14em] text-ink/55">
                       {p.badge}
                     </span>
@@ -182,6 +177,11 @@ export function Category() {
                   </h3>
                   <p className="mt-1 text-[13px] tabular-nums text-ink">
                     {formatINR(Number(p.price))}
+                    {p.compare_at_price && (
+                      <span className="ml-2 text-[12px] text-ink/40 line-through">
+                        {formatINR(Number(p.compare_at_price))}
+                      </span>
+                    )}
                   </p>
                 </div>
               </Link>
