@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Slide } from "../components/Slide";
 import { Feature, Closing, type FeatureItem } from "../components/Slides";
-import { MoodboardHero } from "../components/MoodboardHero";
+import { Cover } from "../components/magazine/Cover";
+import { Contents } from "../components/magazine/Contents";
+import { Letter } from "../components/magazine/Letter";
 import { ShopFloat } from "../components/ShopFloat";
 import { getShopifyHomeProducts } from "../lib/shopifyProducts";
 import { mapShopifyProduct } from "../lib/mapShopifyProduct";
@@ -31,27 +33,31 @@ export function Home() {
 
   return (
     <main className="relative">
+      {/* Issue 01 — magazine front matter */}
       <Slide z={10} tone="light">
-        <MoodboardHero />
+        <Cover />
       </Slide>
 
-      <Slide z={20} id="collection" tone="light">
+      <Slide z={20} tone="light">
+        <Contents />
+      </Slide>
+
+      <Slide z={30} tone="light">
+        <Letter />
+      </Slide>
+
+      {/* shop section — kept from old; gets a magazine redesign next pass */}
+      <Slide z={40} id="collection" tone="light">
         <ShopFloat />
       </Slide>
 
       {featured[0] && (
-        <Slide z={30} tone="dark">
+        <Slide z={50} tone="dark">
           <Feature item={featured[0]} align="right" indexLabel="01 / 02" />
         </Slide>
       )}
 
-      {featured[1] && (
-        <Slide z={40} tone="dark">
-          <Feature item={featured[1]} align="left" indexLabel="02 / 02" />
-        </Slide>
-      )}
-
-      <Slide z={60} pinned={false} tone="light">
+      <Slide z={70} pinned={false} tone="light">
         <Closing />
       </Slide>
     </main>

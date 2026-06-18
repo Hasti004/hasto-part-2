@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@1,6..96,500&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Caveat:wght@500;700&family=Inter:wght@300;400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,300..900,0..100,0..1;1,9..144,300..900,0..100,0..1&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -15,33 +15,30 @@
 }
 
 @layer components {
-  /* scrapbook tokens — building blocks for the pt-2 design language */
-  .pt-tape {
-    @apply absolute h-[18px] w-[78px] bg-powder opacity-80;
+  /* Magazine tokens — editorial type, kickers, rules, marginalia */
+  .mag-masthead {
+    @apply font-display font-medium tracking-[-0.04em] uppercase;
+    font-variation-settings: "opsz" 144, "SOFT" 0, "WONK" 1;
   }
-  .pt-tape-sage { @apply bg-sage; }
-  .pt-tape-toast { @apply bg-toast-300; }
-
-  .pt-polaroid {
-    @apply bg-cream p-2 pb-1.5 border border-espresso/15;
+  .mag-kicker {
+    @apply font-sans text-[10px] uppercase tracking-[0.22em] text-espresso/55;
   }
-  .pt-poly-cap {
-    @apply font-hand font-medium text-[15px] text-espresso text-center mt-1.5;
+  .mag-rule {
+    @apply h-px w-full bg-espresso/25;
   }
-  .pt-hand {
-    @apply font-hand font-bold text-espresso;
+  .mag-dropcap::first-letter {
+    @apply font-display font-medium float-left mr-3 mt-1 text-[5.5em] leading-[0.85] text-espresso;
+    font-variation-settings: "opsz" 144;
   }
-  .pt-sticker {
-    @apply inline-block rounded-full bg-espresso text-paper px-3.5 py-1.5
-           text-[11px] tracking-[0.14em];
+  .mag-pullquote {
+    @apply font-display italic text-espresso/80;
+    font-variation-settings: "opsz" 120, "SOFT" 50;
   }
-  .pt-stamp {
-    @apply inline-flex items-center justify-center text-center
-           border-[1.5px] border-espresso text-espresso rounded-full
-           text-[9px] font-medium tracking-[0.12em] leading-[1.15];
+  .mag-folio {
+    @apply font-mono text-[10px] tracking-[0.14em] text-espresso/55 uppercase;
   }
-  .pt-eyebrow {
-    @apply text-[11px] tracking-[0.18em] text-espresso/60 font-sans;
+  .mag-byline {
+    @apply font-sans text-[10px] uppercase tracking-[0.22em] text-espresso/60;
   }
 }
 
@@ -49,11 +46,14 @@
   .marquee {
     mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
   }
-  /* pt-2 "tape it on" entrance — used by scroll-triggered reveals */
-  @keyframes tape-on {
-    0%   { opacity: 0; transform: translateY(-6px) rotate(0deg); }
-    60%  { opacity: 1; }
-    100% { opacity: 1; transform: translateY(0) rotate(var(--tw-rotate, 0deg)); }
+  /* page-flip-ish entrance for editorial sections */
+  @keyframes page-rise {
+    0%   { opacity: 0; transform: translateY(28px); }
+    100% { opacity: 1; transform: translateY(0); }
   }
-  .animate-tape-on { animation: tape-on 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .animate-page-rise { animation: page-rise 1s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+  /* type tools */
+  .wonk { font-variation-settings: "opsz" 144, "WONK" 1, "SOFT" 0; }
+  .soft { font-variation-settings: "opsz" 60, "SOFT" 100; }
 }

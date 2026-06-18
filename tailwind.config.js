@@ -42,13 +42,13 @@ export default {
         },
       },
       fontFamily: {
-        // Bodoni kept for editorial italic; Bricolage for big bold display;
-        // Caveat for handwritten marker; Inter for UI chrome.
-        display: ['"Bricolage Grotesque"', '"Inter"', 'ui-sans-serif', 'sans-serif'],
-        serif: ['"Bodoni Moda"', 'ui-serif', 'Georgia', 'serif'],
+        // Editorial magazine stack: Fraunces is the display + body serif
+        // (variable font with optical-size + SOFT + WONK axes — does the
+        // heavy lifting). Inter for UI chrome, JetBrains Mono for SKUs.
+        display: ['"Fraunces"', 'ui-serif', 'Georgia', 'serif'],
+        serif: ['"Fraunces"', 'ui-serif', 'Georgia', 'serif'],
         sans: ['"Inter"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        hand: ['"Caveat"', 'cursive'],
-        mono: ['ui-monospace', 'Consolas', 'monospace'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'Consolas', 'monospace'],
       },
       letterSpacing: {
         tightest: "-0.04em",
