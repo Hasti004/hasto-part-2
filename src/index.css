@@ -1,21 +1,47 @@
-@import url("https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,500;0,6..96,600;0,6..96,700;1,6..96,400;1,6..96,500;1,6..96,600&family=Inter:wght@300;400;500;600&family=Big+Shoulders+Display:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@1,6..96,500&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Caveat:wght@500;700&family=Inter:wght@300;400;500;600&display=swap");
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  html {
-    scroll-behavior: smooth;
-  }
+  html { scroll-behavior: smooth; }
   body {
-    @apply bg-paper text-ink font-sans antialiased;
+    @apply bg-paper text-espresso font-sans antialiased;
     font-feature-settings: "ss01", "cv11";
   }
-  ::selection { @apply bg-lavender-300 text-ink; }
-  h1, h2, h3 {
-    @apply font-display;
-    font-variation-settings: "opsz" 96;
+  ::selection { @apply bg-toast-200 text-espresso; }
+  h1, h2, h3 { @apply font-display; }
+}
+
+@layer components {
+  /* scrapbook tokens — building blocks for the pt-2 design language */
+  .pt-tape {
+    @apply absolute h-[18px] w-[78px] bg-powder opacity-80;
+  }
+  .pt-tape-sage { @apply bg-sage; }
+  .pt-tape-toast { @apply bg-toast-300; }
+
+  .pt-polaroid {
+    @apply bg-cream p-2 pb-1.5 border border-espresso/15;
+  }
+  .pt-poly-cap {
+    @apply font-hand font-medium text-[15px] text-espresso text-center mt-1.5;
+  }
+  .pt-hand {
+    @apply font-hand font-bold text-espresso;
+  }
+  .pt-sticker {
+    @apply inline-block rounded-full bg-espresso text-paper px-3.5 py-1.5
+           text-[11px] tracking-[0.14em];
+  }
+  .pt-stamp {
+    @apply inline-flex items-center justify-center text-center
+           border-[1.5px] border-espresso text-espresso rounded-full
+           text-[9px] font-medium tracking-[0.12em] leading-[1.15];
+  }
+  .pt-eyebrow {
+    @apply text-[11px] tracking-[0.18em] text-espresso/60 font-sans;
   }
 }
 
@@ -23,27 +49,11 @@
   .marquee {
     mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
   }
-  /* high-contrast display optical size (Bodoni Moda only exposes opsz) */
-  .condensed {
-    font-variation-settings: "opsz" 96;
+  /* pt-2 "tape it on" entrance — used by scroll-triggered reveals */
+  @keyframes tape-on {
+    0%   { opacity: 0; transform: translateY(-6px) rotate(0deg); }
+    60%  { opacity: 1; }
+    100% { opacity: 1; transform: translateY(0) rotate(var(--tw-rotate, 0deg)); }
   }
-  .wide {
-    font-variation-settings: "opsz" 28;
-  }
-  /* living film grain — small jittery shifts give that 90s shimmer */
-  @keyframes grain {
-    0%, 100% { transform: translate(0, 0); }
-    10% { transform: translate(-4%, -5%); }
-    20% { transform: translate(-9%, 4%); }
-    30% { transform: translate(5%, -8%); }
-    40% { transform: translate(-3%, 12%); }
-    50% { transform: translate(-9%, 6%); }
-    60% { transform: translate(12%, 0); }
-    70% { transform: translate(0, 9%); }
-    80% { transform: translate(-12%, 1%); }
-    90% { transform: translate(8%, 4%); }
-  }
-  .grain-anim {
-    animation: grain 0.6s steps(1) infinite;
-  }
+  .animate-tape-on { animation: tape-on 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
 }

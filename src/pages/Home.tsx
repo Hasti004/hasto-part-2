@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Slide } from "../components/Slide";
-import { Intro, Feature, Closing, type FeatureItem } from "../components/Slides";
+import { Feature, Closing, type FeatureItem } from "../components/Slides";
+import { MoodboardHero } from "../components/MoodboardHero";
 import { ShopFloat } from "../components/ShopFloat";
 import { getShopifyHomeProducts } from "../lib/shopifyProducts";
 import { mapShopifyProduct } from "../lib/mapShopifyProduct";
@@ -30,8 +31,8 @@ export function Home() {
 
   return (
     <main className="relative">
-      <Slide z={10} tone="dark">
-        <Intro />
+      <Slide z={10} tone="light">
+        <MoodboardHero />
       </Slide>
 
       <Slide z={20} id="collection" tone="light">
